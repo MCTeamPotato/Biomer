@@ -1,6 +1,7 @@
 package me.kall.biomer;
 
 import me.kall.biomer.config.BiomeArgs;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
@@ -15,8 +16,9 @@ public final class Biomer {
 
     public Biomer(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();
-        modBus.addListener((ServerAboutToStartEvent event) -> {
+        MinecraftForge.EVENT_BUS.addListener((ServerAboutToStartEvent event) -> {
             BiomeArgs biomeArgs = new BiomeArgs();
+            LOGGER.info(biomeArgs.toString());
         });
     }
 }
