@@ -204,83 +204,86 @@ public class BiomeArgs {
         sb.append("BiomeArgs {\n");
 
         Set<ResourceLocation> allBiomes = this.hasPrecipitation.keySet();
-        sb.append("  biomes: [\n");
+        List<ResourceLocation> sortedBiomes = new ArrayList<>(allBiomes);
+        sortedBiomes.sort(Comparator.comparing(ResourceLocation::toString));
+
+        sb.append("  \"biomes\": [\n");
 
         int biomeCount = 0;
-        for (ResourceLocation biomeId : allBiomes) {
+        for (ResourceLocation biomeId : sortedBiomes) {
             if (biomeCount > 0) {
                 sb.append(",\n");
             }
             sb.append("    {\n");
-            sb.append("      id: \"").append(biomeId).append("\",\n");
+            sb.append("      \"id\": \"").append(biomeId).append("\",\n");
 
-            sb.append("      climate: {\n");
-            sb.append("        hasPrecipitation: ").append(this.hasPrecipitation.getBoolean(biomeId)).append(",\n");
-            sb.append("        temperature: ").append(this.temperature.getDouble(biomeId)).append(",\n");
-            sb.append("        downfall: ").append(this.downfall.getDouble(biomeId)).append(",\n");
-            sb.append("        temperatureModifier: \"").append(this.temperatureModifier.get(biomeId)).append("\"\n");
+            sb.append("      \"climate\": {\n");
+            sb.append("        \"hasPrecipitation\": ").append(this.hasPrecipitation.getBoolean(biomeId)).append(",\n");
+            sb.append("        \"temperature\": ").append(this.temperature.getDouble(biomeId)).append(",\n");
+            sb.append("        \"downfall\": ").append(this.downfall.getDouble(biomeId)).append(",\n");
+            sb.append("        \"temperatureModifier\": \"").append(this.temperatureModifier.get(biomeId)).append("\"\n");
             sb.append("      },\n");
 
-            sb.append("      colors: {\n");
-            sb.append("        fogColor: ").append(String.format("0x%06X", this.fogColor.getInt(biomeId))).append(",\n");
-            sb.append("        waterColor: ").append(String.format("0x%06X", this.waterColor.getInt(biomeId))).append(",\n");
-            sb.append("        waterFogColor: ").append(String.format("0x%06X", this.waterFogColor.getInt(biomeId))).append(",\n");
-            sb.append("        skyColor: ").append(String.format("0x%06X", this.skyColor.getInt(biomeId))).append(",\n");
+            sb.append("      \"colors\": {\n");
+            sb.append("        \"fogColor\": \"").append(String.format("0x%06X", this.fogColor.getInt(biomeId))).append("\",\n");
+            sb.append("        \"waterColor\": \"").append(String.format("0x%06X", this.waterColor.getInt(biomeId))).append("\",\n");
+            sb.append("        \"waterFogColor\": \"").append(String.format("0x%06X", this.waterFogColor.getInt(biomeId))).append("\",\n");
+            sb.append("        \"skyColor\": \"").append(String.format("0x%06X", this.skyColor.getInt(biomeId))).append("\",\n");
 
             if (this.foliageColorOverride.containsKey(biomeId)) {
-                sb.append("        foliageColorOverride: ").append(String.format("0x%06X", this.foliageColorOverride.getInt(biomeId))).append(",\n");
+                sb.append("        \"foliageColorOverride\": \"").append(String.format("0x%06X", this.foliageColorOverride.getInt(biomeId))).append("\",\n");
             }
             if (this.grassColorOverride.containsKey(biomeId)) {
-                sb.append("        grassColorOverride: ").append(String.format("0x%06X", this.grassColorOverride.getInt(biomeId))).append(",\n");
+                sb.append("        \"grassColorOverride\": \"").append(String.format("0x%06X", this.grassColorOverride.getInt(biomeId))).append("\",\n");
             }
 
-            sb.append("        grassColorModifier: \"").append(this.grassColorModifier.get(biomeId)).append("\"\n");
+            sb.append("        \"grassColorModifier\": \"").append(this.grassColorModifier.get(biomeId)).append("\"\n");
             sb.append("      },\n");
 
-            sb.append("      ambientEffects: {\n");
+            sb.append("      \"ambientEffects\": {\n");
 
             List<String> ambientItems = new ArrayList<>();
 
             if (this.ambientParticleSettings.containsKey(biomeId)) {
                 AmbientParticleConfig particleConfig = this.ambientParticleSettings.get(biomeId);
-                String particles = "        particles: {\n" +
-                        "          type: \"" + particleConfig.particleOptions() + "\",\n" +
-                        "          probability: " + particleConfig.probability() + "\n" +
+                String particles = "        \"particles\": {\n" +
+                        "          \"type\": \"" + particleConfig.particleOptions() + "\",\n" +
+                        "          \"probability\": " + particleConfig.probability() + "\n" +
                         "        }";
                 ambientItems.add(particles);
             }
 
             if (this.ambientLoopSoundEvent.containsKey(biomeId)) {
-                ambientItems.add("        loopSound: \"" + this.ambientLoopSoundEvent.get(biomeId) + "\"");
+                ambientItems.add("        \"loopSound\": \"" + this.ambientLoopSoundEvent.get(biomeId) + "\"");
             }
 
             if (this.ambientMoodSettings.containsKey(biomeId)) {
                 AmbientMoodConfig moodConfig = this.ambientMoodSettings.get(biomeId);
-                String mood = "        mood: {\n" +
-                        "          soundEvent: \"" + moodConfig.soundEvent() + "\",\n" +
-                        "          tickDelay: " + moodConfig.tickDelay() + ",\n" +
-                        "          blockSearchExtent: " + moodConfig.blockSearchExtent() + ",\n" +
-                        "          soundPositionOffset: " + moodConfig.soundPositionOffset() + "\n" +
+                String mood = "        \"mood\": {\n" +
+                        "          \"soundEvent\": \"" + moodConfig.soundEvent() + "\",\n" +
+                        "          \"tickDelay\": " + moodConfig.tickDelay() + ",\n" +
+                        "          \"blockSearchExtent\": " + moodConfig.blockSearchExtent() + ",\n" +
+                        "          \"soundPositionOffset\": " + moodConfig.soundPositionOffset() + "\n" +
                         "        }";
                 ambientItems.add(mood);
             }
 
             if (this.ambientAdditionsSettings.containsKey(biomeId)) {
                 AmbientAdditionsConfig additionsConfig = this.ambientAdditionsSettings.get(biomeId);
-                String additions = "        additions: {\n" +
-                        "          soundEvent: \"" + additionsConfig.soundEvent() + "\",\n" +
-                        "          tickChance: " + additionsConfig.tickChance() + "\n" +
+                String additions = "        \"additions\": {\n" +
+                        "          \"soundEvent\": \"" + additionsConfig.soundEvent() + "\",\n" +
+                        "          \"tickChance\": " + additionsConfig.tickChance() + "\n" +
                         "        }";
                 ambientItems.add(additions);
             }
 
             if (this.backgroundMusic.containsKey(biomeId)) {
                 MusicConfig musicConfig = this.backgroundMusic.get(biomeId);
-                String music = "        music: {\n" +
-                        "          soundEvent: \"" + musicConfig.soundEvent() + "\",\n" +
-                        "          minDelay: " + musicConfig.minDelay() + ",\n" +
-                        "          maxDelay: " + musicConfig.maxDelay() + ",\n" +
-                        "          replaceCurrentMusic: " + musicConfig.replaceCurrentMusic() + "\n" +
+                String music = "        \"music\": {\n" +
+                        "          \"soundEvent\": \"" + musicConfig.soundEvent() + "\",\n" +
+                        "          \"minDelay\": " + musicConfig.minDelay() + ",\n" +
+                        "          \"maxDelay\": " + musicConfig.maxDelay() + ",\n" +
+                        "          \"replaceCurrentMusic\": " + musicConfig.replaceCurrentMusic() + "\n" +
                         "        }";
                 ambientItems.add(music);
             }
