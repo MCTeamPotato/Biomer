@@ -1,0 +1,20 @@
+modLoader = "javafml"
+loaderVersion = "[36,)"
+#issueTrackerURL = ""
+license = "MIT"
+
+[[mods]]
+modId = "biomer"
+version = "${version}"
+displayName = "Biomer"
+authors = "Kall"
+description = '''
+'''
+#logoFile = ""
+
+[[dependencies.biomer]]
+modId="duplicationless"
+mandatory=true
+versionRange="[1.1.5,)"
+ordering="NONE"
+side="BOTH"
