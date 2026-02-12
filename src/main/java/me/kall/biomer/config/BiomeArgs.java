@@ -1,314 +1,232 @@
 package me.kall.biomer.config;
 
+import com.google.gson.*;
 import it.unimi.dsi.fastutil.objects.*;
+import me.kall.biomer.config.records.AmbientAdditionsData;
+import me.kall.biomer.config.records.AmbientMoodData;
+import me.kall.biomer.config.records.AmbientParticleData;
+import me.kall.biomer.config.records.MusicData;
 import me.kall.biomer.mixin.AmbientParticleSettingsAccessor;
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.Music;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.level.biome.*;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSpecialEffects;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class BiomeArgs {
+    public static @Nullable BiomeArgs gameBiomeArgs;
+
     public final Object2BooleanMap<ResourceLocation> hasPrecipitation = new Object2BooleanOpenHashMap<>();
     public final Object2DoubleMap<ResourceLocation> temperature = new Object2DoubleOpenHashMap<>(), downfall = new Object2DoubleOpenHashMap<>();
     public final Object2ObjectMap<ResourceLocation, Biome.TemperatureModifier> temperatureModifier = new Object2ObjectOpenHashMap<>();
     public final Object2ObjectMap<ResourceLocation, BiomeSpecialEffects.GrassColorModifier> grassColorModifier = new Object2ObjectOpenHashMap<>();
     public final Object2IntMap<ResourceLocation> fogColor = new Object2IntOpenHashMap<>(), waterColor = new Object2IntOpenHashMap<>(), waterFogColor = new Object2IntOpenHashMap<>(), skyColor = new Object2IntOpenHashMap<>(), foliageColorOverride = new Object2IntOpenHashMap<>(), grassColorOverride = new Object2IntOpenHashMap<>();
-    public final Object2ObjectMap<ResourceLocation, AmbientParticleConfig> ambientParticleSettings = new Object2ObjectOpenHashMap<>();
+    public final Object2ObjectMap<ResourceLocation, AmbientParticleData> ambientParticleSettings = new Object2ObjectOpenHashMap<>();
     public final Object2ObjectMap<ResourceLocation, ResourceLocation> ambientLoopSoundEvent = new Object2ObjectOpenHashMap<>();
-    public final Object2ObjectMap<ResourceLocation, AmbientMoodConfig> ambientMoodSettings = new Object2ObjectOpenHashMap<>();
-    public final Object2ObjectMap<ResourceLocation, AmbientAdditionsConfig> ambientAdditionsSettings = new Object2ObjectOpenHashMap<>();
-    public final Object2ObjectMap<ResourceLocation, MusicConfig> backgroundMusic = new Object2ObjectOpenHashMap<>();
+    public final Object2ObjectMap<ResourceLocation, AmbientMoodData> ambientMoodSettings = new Object2ObjectOpenHashMap<>();
+    public final Object2ObjectMap<ResourceLocation, AmbientAdditionsData> ambientAdditionsSettings = new Object2ObjectOpenHashMap<>();
+    public final Object2ObjectMap<ResourceLocation, MusicData> backgroundMusic = new Object2ObjectOpenHashMap<>();
 
-    public BiomeArgs() {
-        ServerLifecycleHooks.getCurrentServer().registryAccess().registry(Registries.BIOME).ifPresent(biomeRegistry -> {
+    private @Nullable String stringCache;
+
+    private static int parseHexColor(@NotNull String hexColor) {
+        return Integer.parseInt(hexColor.replace("0x", ""), 16);
+    }
+
+    public BiomeArgs() {}
+
+    public BiomeArgs(@NotNull MinecraftServer server) {
+        server.registryAccess().registry(Registries.BIOME).ifPresent(biomeRegistry -> {
             for (Map.Entry<ResourceKey<Biome>, Biome> entry : biomeRegistry.entrySet()) {
                 Biome biome = entry.getValue();
                 ResourceLocation id = entry.getKey().location();
 
                 Biome.ClimateSettings climateSettings = biome.getModifiedClimateSettings();
-                boolean hasPrecipitation = climateSettings.hasPrecipitation();
-                float temperature = climateSettings.temperature();
-                Biome.TemperatureModifier temperatureModifier = climateSettings.temperatureModifier();
-                float downfall = climateSettings.downfall();
-
                 BiomeSpecialEffects specialEffects = biome.getModifiedSpecialEffects();
-                int fogColor = specialEffects.getFogColor();
-                int waterColor = specialEffects.getWaterColor();
-                int waterFogColor = specialEffects.getWaterFogColor();
-                int skyColor = specialEffects.getSkyColor();
-                Optional<Integer> foliageColorOverride = specialEffects.getFoliageColorOverride();
-                Optional<Integer> grassColorOverride = specialEffects.getGrassColorOverride();
-                BiomeSpecialEffects.GrassColorModifier grassColorModifier = specialEffects.getGrassColorModifier();
-                Optional<AmbientParticleSettings> ambientParticleSettings = specialEffects.getAmbientParticleSettings();
-                Optional<Holder<SoundEvent>> ambientLoopSoundEvent = specialEffects.getAmbientLoopSoundEvent();
-                Optional<AmbientMoodSettings> ambientMoodSettings = specialEffects.getAmbientMoodSettings();
-                Optional<AmbientAdditionsSettings> ambientAdditionsSettings = specialEffects.getAmbientAdditionsSettings();
-                Optional<Music> backgroundMusic = specialEffects.getBackgroundMusic();
 
+                this.hasPrecipitation.put(id, climateSettings.hasPrecipitation());
+                this.temperature.put(id, climateSettings.temperature());
+                this.temperatureModifier.put(id, climateSettings.temperatureModifier());
+                this.downfall.put(id, climateSettings.downfall());
 
-                this.hasPrecipitation.put(id, hasPrecipitation);
-                this.temperature.put(id, temperature);
-                this.temperatureModifier.put(id, temperatureModifier);
-                this.downfall.put(id, downfall);
-
-                this.fogColor.put(id, fogColor);
-                this.waterColor.put(id, waterColor);
-                this.waterFogColor.put(id, waterFogColor);
-                this.skyColor.put(id, skyColor);
-                foliageColorOverride.ifPresent(value -> this.foliageColorOverride.put(id, value.intValue()));
-                grassColorOverride.ifPresent(value -> this.grassColorOverride.put(id, value.intValue()));
-                this.grassColorModifier.put(id, grassColorModifier);
-                ambientParticleSettings.ifPresent(settings -> this.ambientParticleSettings.put(id, new AmbientParticleConfig(ForgeRegistries.PARTICLE_TYPES.getKey(settings.getOptions().getType()), ((AmbientParticleSettingsAccessor)settings).getProbability())));
-                ambientLoopSoundEvent.ifPresent(soundEventHolder -> this.ambientLoopSoundEvent.put(id, soundEventHolder.value().getLocation()));
-                ambientMoodSettings.ifPresent(mood -> this.ambientMoodSettings.put(id, new AmbientMoodConfig(mood.getSoundEvent().value().getLocation(), mood.getTickDelay(), mood.getBlockSearchExtent(), mood.getSoundPositionOffset())));
-                ambientAdditionsSettings.ifPresent(additions -> this.ambientAdditionsSettings.put(id, new AmbientAdditionsConfig(additions.getSoundEvent().value().getLocation(), additions.getTickChance())));
-                backgroundMusic.ifPresent(music -> this.backgroundMusic.put(id, new MusicConfig(music.getEvent().value().getLocation(), music.getMinDelay(), music.getMaxDelay(), music.replaceCurrentMusic())));
+                this.fogColor.put(id, specialEffects.getFogColor());
+                this.waterColor.put(id, specialEffects.getWaterColor());
+                this.waterFogColor.put(id, specialEffects.getWaterFogColor());
+                this.skyColor.put(id, specialEffects.getSkyColor());
+                specialEffects.getFoliageColorOverride().ifPresent(value -> this.foliageColorOverride.put(id, value.intValue()));
+                specialEffects.getGrassColorOverride().ifPresent(value -> this.grassColorOverride.put(id, value.intValue()));
+                this.grassColorModifier.put(id, specialEffects.getGrassColorModifier());
+                specialEffects.getAmbientParticleSettings().ifPresent(settings -> this.ambientParticleSettings.put(id, new AmbientParticleData(ForgeRegistries.PARTICLE_TYPES.getKey(settings.getOptions().getType()), ((AmbientParticleSettingsAccessor)settings).getProbability())));
+                specialEffects.getAmbientLoopSoundEvent().ifPresent(soundEventHolder -> this.ambientLoopSoundEvent.put(id, soundEventHolder.value().getLocation()));
+                specialEffects.getAmbientMoodSettings().ifPresent(mood -> this.ambientMoodSettings.put(id, new AmbientMoodData(mood.getSoundEvent().value().getLocation(), mood.getTickDelay(), mood.getBlockSearchExtent(), mood.getSoundPositionOffset())));
+                specialEffects.getAmbientAdditionsSettings().ifPresent(additions -> this.ambientAdditionsSettings.put(id, new AmbientAdditionsData(additions.getSoundEvent().value().getLocation(), additions.getTickChance())));
+                specialEffects.getBackgroundMusic().ifPresent(music -> this.backgroundMusic.put(id, new MusicData(music.getEvent().value().getLocation(), music.getMinDelay(), music.getMaxDelay(), music.replaceCurrentMusic())));
             }
         });
     }
 
-    public boolean hasPrecipitation(ResourceLocation biomeId) {
-        return this.hasPrecipitation.getBoolean(biomeId);
-    }
+    public static @NotNull BiomeArgs fromString(String json) {
+        BiomeArgs biomeArgs = new BiomeArgs();
+        for (JsonElement biomeElement : JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("biomes")) {
+            JsonObject biomeObj = biomeElement.getAsJsonObject();
 
-    public double getTemperature(ResourceLocation biomeId) {
-        return this.temperature.getDouble(biomeId);
-    }
+            ResourceLocation biomeId = ResourceLocation.parse(biomeObj.get("id").getAsString());
 
-    public double getDownfall(ResourceLocation biomeId) {
-        return this.downfall.getDouble(biomeId);
-    }
+            JsonObject climate = biomeObj.getAsJsonObject("climate");
+            biomeArgs.hasPrecipitation.put(biomeId, climate.get("hasPrecipitation").getAsBoolean());
+            biomeArgs.temperature.put(biomeId, climate.get("temperature").getAsDouble());
+            biomeArgs.downfall.put(biomeId, climate.get("downfall").getAsDouble());
+            biomeArgs.temperatureModifier.put(biomeId, Biome.TemperatureModifier.valueOf(climate.get("temperatureModifier").getAsString()));
 
-    public Biome.TemperatureModifier getTemperatureModifier(ResourceLocation biomeId) {
-        return this.temperatureModifier.get(biomeId);
-    }
+            JsonObject colors = biomeObj.getAsJsonObject("colors");
+            biomeArgs.fogColor.put(biomeId, parseHexColor(colors.get("fogColor").getAsString()));
+            biomeArgs.waterColor.put(biomeId, parseHexColor(colors.get("waterColor").getAsString()));
+            biomeArgs.waterFogColor.put(biomeId, parseHexColor(colors.get("waterFogColor").getAsString()));
+            biomeArgs.skyColor.put(biomeId, parseHexColor(colors.get("skyColor").getAsString()));
 
-    public int getFogColor(ResourceLocation biomeId) {
-        return this.fogColor.getInt(biomeId);
-    }
+            if (colors.has("foliageColorOverride")) biomeArgs.foliageColorOverride.put(biomeId, parseHexColor(colors.get("foliageColorOverride").getAsString()));
+            if (colors.has("grassColorOverride")) biomeArgs.grassColorOverride.put(biomeId, parseHexColor(colors.get("grassColorOverride").getAsString()));
 
-    public int getWaterColor(ResourceLocation biomeId) {
-        return this.waterColor.getInt(biomeId);
-    }
+            biomeArgs.grassColorModifier.put(biomeId, BiomeSpecialEffects.GrassColorModifier.valueOf(colors.get("grassColorModifier").getAsString()));
 
-    public int getWaterFogColor(ResourceLocation biomeId) {
-        return this.waterFogColor.getInt(biomeId);
-    }
+            JsonObject ambientEffects = biomeObj.getAsJsonObject("ambientEffects");
 
-    public int getSkyColor(ResourceLocation biomeId) {
-        return this.skyColor.getInt(biomeId);
-    }
+            if (ambientEffects.has("particles")) {
+                JsonObject particles = ambientEffects.getAsJsonObject("particles");
+                biomeArgs.ambientParticleSettings.put(biomeId, new AmbientParticleData(ResourceLocation.parse(particles.get("type").getAsString()), particles.get("probability").getAsFloat()));
+            }
 
-    public Optional<Integer> getFoliageColorOverride(ResourceLocation biomeId) {
-        return this.foliageColorOverride.containsKey(biomeId) ? Optional.of(this.foliageColorOverride.getInt(biomeId)) : Optional.empty();
-    }
+            if (ambientEffects.has("loopSound")) {
+                biomeArgs.ambientLoopSoundEvent.put(biomeId, ResourceLocation.parse(ambientEffects.get("loopSound").getAsString()));
+            }
 
-    public Optional<Integer> getGrassColorOverride(ResourceLocation biomeId) {
-        return this.grassColorOverride.containsKey(biomeId) ? Optional.of(this.grassColorOverride.getInt(biomeId)) : Optional.empty();
-    }
+            if (ambientEffects.has("mood")) {
+                JsonObject mood = ambientEffects.getAsJsonObject("mood");
+                biomeArgs.ambientMoodSettings.put(biomeId, new AmbientMoodData(ResourceLocation.parse(mood.get("soundEvent").getAsString()), mood.get("tickDelay").getAsInt(), mood.get("blockSearchExtent").getAsInt(), mood.get("soundPositionOffset").getAsDouble()));
+            }
 
-    public BiomeSpecialEffects.GrassColorModifier getGrassColorModifier(ResourceLocation biomeId) {
-        return this.grassColorModifier.get(biomeId);
-    }
+            if (ambientEffects.has("additions")) {
+                JsonObject additions = ambientEffects.getAsJsonObject("additions");
+                biomeArgs.ambientAdditionsSettings.put(biomeId, new AmbientAdditionsData(ResourceLocation.parse(additions.get("soundEvent").getAsString()), additions.get("tickChance").getAsDouble()));
+            }
 
-    public Optional<ResourceLocation> getAmbientLoopSoundEvent(ResourceLocation biomeId) {
-        return Optional.ofNullable(this.ambientLoopSoundEvent.get(biomeId));
-    }
+            if (ambientEffects.has("music")) {
+                JsonObject music = ambientEffects.getAsJsonObject("music");
+                biomeArgs.backgroundMusic.put(biomeId, new MusicData(ResourceLocation.parse(music.get("soundEvent").getAsString()), music.get("minDelay").getAsInt(), music.get("maxDelay").getAsInt(), music.get("replaceCurrentMusic").getAsBoolean()));
+            }
+        }
 
-    public Optional<AmbientParticleConfig> getAmbientParticleConfig(ResourceLocation biomeId) {
-        return Optional.ofNullable(this.ambientParticleSettings.get(biomeId));
-    }
-
-    public Optional<ResourceLocation> getParticleOptions(ResourceLocation biomeId) {
-        AmbientParticleConfig config = this.ambientParticleSettings.get(biomeId);
-        return config != null ? Optional.of(config.particleOptions()) : Optional.empty();
-    }
-
-    public Optional<Float> getParticleProbability(ResourceLocation biomeId) {
-        AmbientParticleConfig config = this.ambientParticleSettings.get(biomeId);
-        return config != null ? Optional.of(config.probability()) : Optional.empty();
-    }
-
-    public Optional<AmbientMoodConfig> getAmbientMoodConfig(ResourceLocation biomeId) {
-        return Optional.ofNullable(this.ambientMoodSettings.get(biomeId));
-    }
-
-    public Optional<ResourceLocation> getMoodSoundEvent(ResourceLocation biomeId) {
-        AmbientMoodConfig config = this.ambientMoodSettings.get(biomeId);
-        return config != null ? Optional.of(config.soundEvent()) : Optional.empty();
-    }
-
-    public Optional<Integer> getMoodTickDelay(ResourceLocation biomeId) {
-        AmbientMoodConfig config = this.ambientMoodSettings.get(biomeId);
-        return config != null ? Optional.of(config.tickDelay()) : Optional.empty();
-    }
-
-    public Optional<Integer> getMoodBlockSearchExtent(ResourceLocation biomeId) {
-        AmbientMoodConfig config = this.ambientMoodSettings.get(biomeId);
-        return config != null ? Optional.of(config.blockSearchExtent()) : Optional.empty();
-    }
-
-    public Optional<Double> getMoodSoundPositionOffset(ResourceLocation biomeId) {
-        AmbientMoodConfig config = this.ambientMoodSettings.get(biomeId);
-        return config != null ? Optional.of(config.soundPositionOffset()) : Optional.empty();
-    }
-
-    public Optional<AmbientAdditionsConfig> getAmbientAdditionsConfig(ResourceLocation biomeId) {
-        return Optional.ofNullable(this.ambientAdditionsSettings.get(biomeId));
-    }
-
-    public Optional<ResourceLocation> getAdditionsSoundEvent(ResourceLocation biomeId) {
-        AmbientAdditionsConfig config = this.ambientAdditionsSettings.get(biomeId);
-        return config != null ? Optional.of(config.soundEvent()) : Optional.empty();
-    }
-
-    public Optional<Double> getAdditionsTickChance(ResourceLocation biomeId) {
-        AmbientAdditionsConfig config = this.ambientAdditionsSettings.get(biomeId);
-        return config != null ? Optional.of(config.tickChance()) : Optional.empty();
-    }
-
-    public Optional<MusicConfig> getMusicConfig(ResourceLocation biomeId) {
-        return Optional.ofNullable(this.backgroundMusic.get(biomeId));
-    }
-
-    public Optional<ResourceLocation> getMusicSoundEvent(ResourceLocation biomeId) {
-        MusicConfig config = this.backgroundMusic.get(biomeId);
-        return config != null ? Optional.of(config.soundEvent()) : Optional.empty();
-    }
-
-    public Optional<Integer> getMusicMinDelay(ResourceLocation biomeId) {
-        MusicConfig config = this.backgroundMusic.get(biomeId);
-        return config != null ? Optional.of(config.minDelay()) : Optional.empty();
-    }
-
-    public Optional<Integer> getMusicMaxDelay(ResourceLocation biomeId) {
-        MusicConfig config = this.backgroundMusic.get(biomeId);
-        return config != null ? Optional.of(config.maxDelay()) : Optional.empty();
-    }
-
-    public Optional<Boolean> getMusicReplacesCurrent(ResourceLocation biomeId) {
-        MusicConfig config = this.backgroundMusic.get(biomeId);
-        return config != null ? Optional.of(config.replaceCurrentMusic()) : Optional.empty();
+        return biomeArgs;
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("BiomeArgs {\n");
+        if (this.stringCache != null) return this.stringCache;
 
-        Set<ResourceLocation> allBiomes = this.hasPrecipitation.keySet();
-        List<ResourceLocation> sortedBiomes = new ArrayList<>(allBiomes);
-        sortedBiomes.sort(Comparator.comparing(ResourceLocation::toString));
+        JsonObject root = new JsonObject();
+        JsonArray biomesArray = new JsonArray();
 
-        sb.append("  \"biomes\": [\n");
+        List<ResourceLocation> biomes = new ObjectArrayList<>(this.hasPrecipitation.keySet());
+        biomes.sort(Comparator.comparing(ResourceLocation::toString));
 
-        int biomeCount = 0;
-        for (ResourceLocation biomeId : sortedBiomes) {
-            if (biomeCount > 0) {
-                sb.append(",\n");
-            }
-            sb.append("    {\n");
-            sb.append("      \"id\": \"").append(biomeId).append("\",\n");
+        for (ResourceLocation biomeId : biomes) {
+            JsonObject biomeObj = new JsonObject();
+            biomeObj.addProperty("id", biomeId.toString());
 
-            sb.append("      \"climate\": {\n");
-            sb.append("        \"hasPrecipitation\": ").append(this.hasPrecipitation.getBoolean(biomeId)).append(",\n");
-            sb.append("        \"temperature\": ").append(this.temperature.getDouble(biomeId)).append(",\n");
-            sb.append("        \"downfall\": ").append(this.downfall.getDouble(biomeId)).append(",\n");
-            sb.append("        \"temperatureModifier\": \"").append(this.temperatureModifier.get(biomeId)).append("\"\n");
-            sb.append("      },\n");
+            JsonObject climate = new JsonObject();
+            climate.addProperty("hasPrecipitation", this.hasPrecipitation.getBoolean(biomeId));
+            climate.addProperty("temperature", this.temperature.getDouble(biomeId));
+            climate.addProperty("downfall", this.downfall.getDouble(biomeId));
+            climate.addProperty("temperatureModifier", this.temperatureModifier.get(biomeId).toString());
+            biomeObj.add("climate", climate);
 
-            sb.append("      \"colors\": {\n");
-            sb.append("        \"fogColor\": \"").append(String.format("0x%06X", this.fogColor.getInt(biomeId))).append("\",\n");
-            sb.append("        \"waterColor\": \"").append(String.format("0x%06X", this.waterColor.getInt(biomeId))).append("\",\n");
-            sb.append("        \"waterFogColor\": \"").append(String.format("0x%06X", this.waterFogColor.getInt(biomeId))).append("\",\n");
-            sb.append("        \"skyColor\": \"").append(String.format("0x%06X", this.skyColor.getInt(biomeId))).append("\",\n");
+            JsonObject colors = new JsonObject();
+            colors.addProperty("fogColor", String.format("0x%06X", this.fogColor.getInt(biomeId)));
+            colors.addProperty("waterColor", String.format("0x%06X", this.waterColor.getInt(biomeId)));
+            colors.addProperty("waterFogColor", String.format("0x%06X", this.waterFogColor.getInt(biomeId)));
+            colors.addProperty("skyColor", String.format("0x%06X", this.skyColor.getInt(biomeId)));
 
             if (this.foliageColorOverride.containsKey(biomeId)) {
-                sb.append("        \"foliageColorOverride\": \"").append(String.format("0x%06X", this.foliageColorOverride.getInt(biomeId))).append("\",\n");
+                colors.addProperty("foliageColorOverride", String.format("0x%06X", this.foliageColorOverride.getInt(biomeId)));
             }
             if (this.grassColorOverride.containsKey(biomeId)) {
-                sb.append("        \"grassColorOverride\": \"").append(String.format("0x%06X", this.grassColorOverride.getInt(biomeId))).append("\",\n");
+                colors.addProperty("grassColorOverride", String.format("0x%06X", this.grassColorOverride.getInt(biomeId)));
             }
 
-            sb.append("        \"grassColorModifier\": \"").append(this.grassColorModifier.get(biomeId)).append("\"\n");
-            sb.append("      },\n");
+            colors.addProperty("grassColorModifier", this.grassColorModifier.get(biomeId).toString());
+            biomeObj.add("colors", colors);
 
-            sb.append("      \"ambientEffects\": {\n");
-
-            List<String> ambientItems = new ArrayList<>();
+            JsonObject ambientEffects = new JsonObject();
 
             if (this.ambientParticleSettings.containsKey(biomeId)) {
-                AmbientParticleConfig particleConfig = this.ambientParticleSettings.get(biomeId);
-                String particles = "        \"particles\": {\n" +
-                        "          \"type\": \"" + particleConfig.particleOptions() + "\",\n" +
-                        "          \"probability\": " + particleConfig.probability() + "\n" +
-                        "        }";
-                ambientItems.add(particles);
+                AmbientParticleData particleConfig = this.ambientParticleSettings.get(biomeId);
+                JsonObject particles = new JsonObject();
+                particles.addProperty("type", particleConfig.particleOptions().toString());
+                particles.addProperty("probability", particleConfig.probability());
+                ambientEffects.add("particles", particles);
             }
 
             if (this.ambientLoopSoundEvent.containsKey(biomeId)) {
-                ambientItems.add("        \"loopSound\": \"" + this.ambientLoopSoundEvent.get(biomeId) + "\"");
+                ambientEffects.addProperty("loopSound", this.ambientLoopSoundEvent.get(biomeId).toString());
             }
 
             if (this.ambientMoodSettings.containsKey(biomeId)) {
-                AmbientMoodConfig moodConfig = this.ambientMoodSettings.get(biomeId);
-                String mood = "        \"mood\": {\n" +
-                        "          \"soundEvent\": \"" + moodConfig.soundEvent() + "\",\n" +
-                        "          \"tickDelay\": " + moodConfig.tickDelay() + ",\n" +
-                        "          \"blockSearchExtent\": " + moodConfig.blockSearchExtent() + ",\n" +
-                        "          \"soundPositionOffset\": " + moodConfig.soundPositionOffset() + "\n" +
-                        "        }";
-                ambientItems.add(mood);
+                AmbientMoodData moodConfig = this.ambientMoodSettings.get(biomeId);
+                JsonObject mood = new JsonObject();
+                mood.addProperty("soundEvent", moodConfig.soundEvent().toString());
+                mood.addProperty("tickDelay", moodConfig.tickDelay());
+                mood.addProperty("blockSearchExtent", moodConfig.blockSearchExtent());
+                mood.addProperty("soundPositionOffset", moodConfig.soundPositionOffset());
+                ambientEffects.add("mood", mood);
             }
 
             if (this.ambientAdditionsSettings.containsKey(biomeId)) {
-                AmbientAdditionsConfig additionsConfig = this.ambientAdditionsSettings.get(biomeId);
-                String additions = "        \"additions\": {\n" +
-                        "          \"soundEvent\": \"" + additionsConfig.soundEvent() + "\",\n" +
-                        "          \"tickChance\": " + additionsConfig.tickChance() + "\n" +
-                        "        }";
-                ambientItems.add(additions);
+                AmbientAdditionsData additionsConfig = this.ambientAdditionsSettings.get(biomeId);
+                JsonObject additions = new JsonObject();
+                additions.addProperty("soundEvent", additionsConfig.soundEvent().toString());
+                additions.addProperty("tickChance", additionsConfig.tickChance());
+                ambientEffects.add("additions", additions);
             }
 
             if (this.backgroundMusic.containsKey(biomeId)) {
-                MusicConfig musicConfig = this.backgroundMusic.get(biomeId);
-                String music = "        \"music\": {\n" +
-                        "          \"soundEvent\": \"" + musicConfig.soundEvent() + "\",\n" +
-                        "          \"minDelay\": " + musicConfig.minDelay() + ",\n" +
-                        "          \"maxDelay\": " + musicConfig.maxDelay() + ",\n" +
-                        "          \"replaceCurrentMusic\": " + musicConfig.replaceCurrentMusic() + "\n" +
-                        "        }";
-                ambientItems.add(music);
+                MusicData musicData = this.backgroundMusic.get(biomeId);
+                JsonObject music = new JsonObject();
+                music.addProperty("soundEvent", musicData.soundEvent().toString());
+                music.addProperty("minDelay", musicData.minDelay());
+                music.addProperty("maxDelay", musicData.maxDelay());
+                music.addProperty("replaceCurrentMusic", musicData.replaceCurrentMusic());
+                ambientEffects.add("music", music);
             }
 
-            for (int i = 0; i < ambientItems.size(); i++) {
-                sb.append(ambientItems.get(i));
-                if (i < ambientItems.size() - 1) {
-                    sb.append(",");
-                }
-                sb.append("\n");
-            }
-
-            sb.append("      }\n");
-            sb.append("    }");
-            biomeCount++;
+            biomeObj.add("ambientEffects", ambientEffects);
+            biomesArray.add(biomeObj);
         }
 
-        sb.append("\n  ]\n");
-        sb.append("}");
+        root.add("biomes", biomesArray);
 
-        return sb.toString();
+        this.stringCache = new GsonBuilder().setPrettyPrinting().create().toJson(root);
+        return this.stringCache;
     }
 
-    public record AmbientAdditionsConfig(ResourceLocation soundEvent, double tickChance) {}
-    public record AmbientMoodConfig(ResourceLocation soundEvent, int tickDelay, int blockSearchExtent, double soundPositionOffset) {}
-    public record AmbientParticleConfig(ResourceLocation particleOptions, float probability) {}
-    public record MusicConfig(ResourceLocation soundEvent, int minDelay, int maxDelay, boolean replaceCurrentMusic) {}
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (!(object instanceof BiomeArgs biomeArgs)) return false;
+
+        return this.hasPrecipitation.equals(biomeArgs.hasPrecipitation) && this.temperature.equals(biomeArgs.temperature) && this.downfall.equals(biomeArgs.downfall) && this.temperatureModifier.equals(biomeArgs.temperatureModifier) && this.grassColorModifier.equals(biomeArgs.grassColorModifier) && this.fogColor.equals(biomeArgs.fogColor) && this.waterColor.equals(biomeArgs.waterColor) && this.waterFogColor.equals(biomeArgs.waterFogColor) && this.skyColor.equals(biomeArgs.skyColor) && this.foliageColorOverride.equals(biomeArgs.foliageColorOverride) && this.grassColorOverride.equals(biomeArgs.grassColorOverride) && this.ambientParticleSettings.equals(biomeArgs.ambientParticleSettings) && this.ambientLoopSoundEvent.equals(biomeArgs.ambientLoopSoundEvent) && this.ambientMoodSettings.equals(biomeArgs.ambientMoodSettings) && this.ambientAdditionsSettings.equals(biomeArgs.ambientAdditionsSettings) && this.backgroundMusic.equals(biomeArgs.backgroundMusic);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.hasPrecipitation, this.temperature, this.downfall, this.temperatureModifier, this.grassColorModifier, this.fogColor, this.waterColor, this.waterFogColor, this.skyColor, this.foliageColorOverride, this.grassColorOverride, this.ambientParticleSettings, this.ambientLoopSoundEvent, this.ambientMoodSettings, this.ambientAdditionsSettings, this.backgroundMusic);
+    }
 }
